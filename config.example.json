@@ -1,0 +1,18 @@
+{
+  "lan_cidr": "192.168.1.0/24",
+  "hosts": {
+    "server": "192.168.1.10",
+    "dns": "192.168.1.2",
+    "nas": "192.168.1.20",
+    "laptop": "192.168.1.30"
+  },
+  "local_host": "server",
+  "dns_hosts": ["dns"],
+  "optional_hosts": ["laptop"],
+  "ports": "1-1024,3389,5432,6379,8080,8443,11434",
+  "output_dir": "/var/lib/netguard",
+  "model": "dolphin3:8b",
+  "dns_paths": ["/opt/AdGuardHome/data/querylog.json"],
+  "auth_paths": ["/var/log/auth.log"],
+  "suspicious_domains": []
+}

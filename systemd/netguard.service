@@ -1,0 +1,28 @@
+[Unit]
+Description=Local homelab network defense report (alert only)
+OnFailure=netguard-notify-failure.service
+After=network-online.target ollama.service
+Wants=network-online.target
+RequiresMountsFor=/var/lib/netguard
+
+[Service]
+Type=oneshot
+User=netguard
+Group=netguard
+Environment=NETGUARD_NTFY_TOPIC_FILE=/etc/netguard/ntfy-topic
+SupplementaryGroups=adm
+WorkingDirectory=/opt/netguard
+ExecStart=/usr/bin/python3 /opt/netguard/netguard.py --config /opt/netguard/config.json
+SuccessExitStatus=1
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/netguard
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=
+Nice=10
+TimeoutStartSec=30min
+StandardOutput=journal
+StandardError=journal

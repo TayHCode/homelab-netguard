@@ -1,0 +1,11 @@
+[Unit]
+Description=Run alert-only homelab netguard every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=30min
+RandomizedDelaySec=2min
+Unit=netguard.service
+
+[Install]
+WantedBy=timers.target

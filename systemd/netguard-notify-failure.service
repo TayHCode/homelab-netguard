@@ -1,0 +1,18 @@
+[Unit]
+Description=Send an alert when the local netguard scanner fails
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=netguard
+Group=netguard
+Environment=NETGUARD_NTFY_TOPIC_FILE=/etc/netguard/ntfy-topic
+ExecStart=/usr/bin/python3 /opt/netguard/netguard.py --notify-failure
+TimeoutStartSec=30s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=

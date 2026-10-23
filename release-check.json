@@ -1,0 +1,492 @@
+{
+  "exclude": [],
+  "approvals": [
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "805ebf201c523f69",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "26702f5a55cf837a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "552354592821b7e6",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "4f4393c6b387ecd2",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "README.md",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "CONTRIBUTING.md",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "CONTRIBUTING.md",
+      "fingerprint": "b0d56c1d28390f7e",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "ab9e34a1378c6cb1",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "d6d026f0af311117",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "0394002061ae861a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "4d0dc973e08042f6",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "76a095cd011ca08b",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "842b949c6959da93",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv6",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "eff8e7ca506627fe",
+      "reason": "Reviewed: IPv6 loopback or test literal in a test."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "a6e5c2e37c558c1a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "9efa80c6f672674d",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "235cf311b7397a77",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "838c4c2573848f58",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "f1412386aa8db257",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "369c3ccfcc5bcd75",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "91720ad9466c403d",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "systemd/ollama.service",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "README.md",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "LICENSE",
+      "fingerprint": "bff60039a844383a",
+      "reason": "Owner-approved: project copyright holder name in the MIT license."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "systemd/ollama.service",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address for the local Ollama binding or test server."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "CONTRIBUTING.md",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "CONTRIBUTING.md",
+      "fingerprint": "b0d56c1d28390f7e",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "LICENSE",
+      "fingerprint": "bff60039a844383a",
+      "reason": "Owner-approved: loopback address or project copyright name."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "README.md",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address or project copyright name."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "README.md",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "67e0142bdc18c8dd",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "805ebf201c523f69",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "26702f5a55cf837a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "552354592821b7e6",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "config.example.json",
+      "fingerprint": "4f4393c6b387ecd2",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address or project copyright name."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "systemd/ollama.service",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address or project copyright name."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "systemd/ollama.service",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Owner-approved: loopback address or project copyright name."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "ab9e34a1378c6cb1",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "d6d026f0af311117",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "0394002061ae861a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "4d0dc973e08042f6",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "76a095cd011ca08b",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "842b949c6959da93",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv6",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "eff8e7ca506627fe",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "a6e5c2e37c558c1a",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "9efa80c6f672674d",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "235cf311b7397a77",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "838c4c2573848f58",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "f1412386aa8db257",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "12ca17b49af22894",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "369c3ccfcc5bcd75",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "91720ad9466c403d",
+      "reason": "Reviewed: private or loopback documentation/test address, not a real host."
+    },
+    {
+      "scope": "tree",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "a959828bd4bfad50",
+      "reason": "Reviewed: short term matches inside the ordinary word 'sender' in test code."
+    },
+    {
+      "scope": "history",
+      "kind": "denylist",
+      "path": "tests/test_netguard.py",
+      "fingerprint": "a959828bd4bfad50",
+      "reason": "Reviewed: short term matches inside the ordinary word 'sender' in test code."
+    }
+  ],
+  "quickstart": [
+    {
+      "file": "README.md",
+      "line": 20,
+      "argv": [
+        "python3",
+        "netguard.py",
+        "--help"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "role": "tests",
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ]
+    }
+  ],
+  "dependency_licenses": {}
+}
