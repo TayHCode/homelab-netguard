@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import threading
 import unittest
 import urllib.response
@@ -29,7 +30,7 @@ def tearDownModule():
 
 
 def settings(directory='/tmp/netguard-test'):
-    return n.config({'lan_cidr': '10.20.30.0/24', 'hosts': {'a-server': '10.20.29.1', 'dns-a': '10.20.29.2'}, 'local_host': 'a-server', 'local_host': 'a-server', 'dns_hosts': ['dns-a'], 'ports': '22,80', 'output_dir': directory})
+    return n.config({'lan_cidr': '10.20.30.0/24', 'hosts': {'a-server': '10.20.29.1', 'dns-a': '10.20.29.2'}, 'local_host': 'a-server', 'dns_hosts': ['dns-a'], 'ports': '22,80', 'output_dir': directory})
 
 
 def xml(hosts, ports=True):
@@ -434,6 +435,9 @@ class NotificationTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {notify.TOPIC_ENV: str(self.topic_file)})
         self.environment.start()
         self.addCleanup(self.environment.stop)
+        digest_off = patch.object(n, 'DIGEST_HOUR', 25)
+        digest_off.start()
+        self.addCleanup(digest_off.stop)
 
     @contextlib.contextmanager
     def server(self, status=200, body=None):
@@ -468,42 +472,72 @@ class NotificationTests(unittest.TestCase):
             server.server_close()
             worker.join()
 
-    def test_phone_policy_actionable_and_routine(self):
-        actionable = ['new_device', 'new_ports', 'auth_failed', 'dns_suffix', 'baseline_missing', 'baseline_mismatch', 'baseline_scope_review']
-        for category in actionable:
+    def test_only_new_devices_ports_and_baseline_problems_page(self):
+        pages = {
+            'new_device': ('new_device:10.20.30.9', 'New device at 10.20.30.9'),
+            'baseline_missing': ('baseline_missing', n.PAGE_NOTES['baseline_missing']),
+        }
+        for category, (key, text) in pages.items():
             with self.subTest(category=category):
-                signature, counts = n.phone_incidents([n.finding(category)], {'severity': 'info', 'proposal': 'none'})
-                self.assertTrue(signature)
-                self.assertEqual(counts, {category: 1})
-        for component in n.COVERAGE_MESSAGES:
-            quiet = component in ('log_history_skipped', 'log_rotated', 'notification_delivery')
-            with self.subTest(component=component):
-                _, counts = n.phone_incidents([n.finding('coverage', component=component)], {})
-                self.assertEqual(bool(counts), not quiet)
-        routine = [n.finding(category) for category in ('baseline_approved', 'baseline_enrolled', 'observed_host', 'source_summary', 'scan_summary', 'dns_long_label', 'dns_entropy', 'unknown')]
+                self.assertEqual(n.notification_items([n.finding(category, ip='10.20.30.9')]), {key: {'text': text, 'count': 1, 'page': True}})
+        ports = n.notification_items([n.finding('new_ports', ip='10.20.30.9', ports=[22, 80])])
+        self.assertEqual(ports, {'new_ports:10.20.30.9:22, 80': {'text': 'New open ports on 10.20.30.9: 22, 80', 'count': 1, 'page': True}})
+        digest = [n.finding('auth_failed', count=3, host='a-server', client_ip='10.20.30.9'), n.finding('dns_entropy', count=8, host='dns-a'),
+                  n.finding('dns_long_label', count=2, host='dns-a'), n.finding('dns_suffix', count=1, host='dns-a'), n.finding('coverage', component='tcp_scan')]
+        digest += [n.finding('coverage', component='host_offline', host=host) for host in ('a-server', 'dns-a')]
+        for found in n.notification_items(digest).values():
+            self.assertFalse(found['page'])
+        self.assertEqual(len(n.notification_items(digest)), 5 + 2)
+        self.assertEqual(n.notification_items([n.finding('auth_failed', count=3, host='a-server', client_ip='10.20.30.9')]),
+                         {'auth_failed on a-server from 10.20.30.9': {'text': 'Failed sign-ins on a-server from 10.20.30.9', 'count': 3, 'page': False}})
+        routine = [n.finding(category) for category in ('baseline_approved', 'baseline_enrolled', 'observed_host', 'source_summary', 'scan_summary', 'unknown')]
+        routine += [n.finding('coverage', component=c) for c in ('log_rotated', 'log_history_skipped', 'notification_delivery')]
         routine.append(n.finding('coverage', component='host_offline', host='laptop-a', optional=True))
-        self.assertEqual(n.phone_incidents(routine, {'severity': 'medium'}), ('', {}))
-        for host in ('a-server', 'dns-a', 'laptop-a'):
-            self.assertEqual(n.phone_incidents([n.finding('coverage', component='host_offline', host=host)], {})[1], {'coverage_host_offline': 1})
-        for severity in ('high', 'critical'):
-            self.assertEqual(n.phone_incidents([n.finding('dns_entropy', count=8)], {'severity': severity})[1], {'dns_entropy': 8})
-            self.assertEqual(n.phone_incidents([n.finding('new_ports'), n.finding('dns_entropy', count=8)], {'severity': severity})[1], {'new_ports': 1})
+        self.assertEqual(n.notification_items(routine), {})
 
-    def test_dedupe_counts_cooldown_clear_recurrence_and_changed_incident(self):
+    def test_each_item_pages_once_even_as_devices_come_and_go(self):
         state = {}
-        item = n.finding('auth_failed', host='a-server', count=3, client_ip='10.20.30.9')
+        a, b = n.finding('new_device', ip='10.20.30.9'), n.finding('new_device', ip='10.20.30.10')
         def deliver(findings, now):
-            with patch.object(n.time, 'time', return_value=now):
-                return n.deliver_notification(state, findings, {}, lambda: None)['status']
+            return n.deliver_notification(state, findings, lambda: None, now=now)['status']
         with patch.object(notify, 'send', return_value={'status': 'accepted'}) as sender:
-            self.assertEqual(deliver([item], 100), 'accepted')
-            self.assertEqual(deliver([dict(item, count=45)], 1900), 'unchanged')
-            self.assertEqual(deliver([item], 100 + 6 * 3600), 'accepted')
-            self.assertEqual(deliver([], 22000), 'quiet')
-            self.assertEqual(state['notification']['last_success'], {})
-            self.assertEqual(deliver([item], 22001), 'accepted')
-            self.assertEqual(deliver([dict(item, client_ip='10.20.30.10')], 22002), 'accepted')
-            self.assertEqual(sender.call_count, 4)
+            self.assertEqual(deliver([a], 100), 'accepted')
+            self.assertEqual(deliver([a, b], 200), 'accepted')
+            self.assertEqual(sender.call_args.args[0], ['New device at 10.20.30.10'])
+            self.assertEqual(deliver([b], 300), 'unchanged')
+            self.assertEqual(deliver([a], 400), 'unchanged')
+            self.assertEqual(deliver([], 500), 'quiet')
+            self.assertEqual(sender.call_count, 2)
+            self.assertEqual(deliver([a], 100 + n.PAGED_TTL + 1), 'accepted')
+
+    def test_digest_sends_once_after_the_morning_hour_and_lists_unreviewed_items(self):
+        state = {}
+        day = time.mktime((2026, 10, 24, 0, 0, 0, 0, 0, -1))
+        findings = [n.finding('new_device', ip='10.20.30.9'), n.finding('dns_entropy', count=8, host='dns-a')]
+        with patch.object(n, 'DIGEST_HOUR', 8), patch.object(notify, 'send', return_value={'status': 'accepted'}) as sender:
+            n.deliver_notification(state, findings, lambda: None, now=int(day + 3 * 3600))
+            self.assertEqual([c.kwargs.get('mode', 'alert') for c in sender.call_args_list], ['alert'])
+            n.deliver_notification(state, findings, lambda: None, now=int(day + 8 * 3600))
+            self.assertEqual([c.kwargs.get('mode', 'alert') for c in sender.call_args_list], ['alert', 'digest'])
+            self.assertEqual(sender.call_args.args[0], ['High-entropy DNS labels on dns-a (x16)', 'New device at 10.20.30.9 (x2)'])
+            n.deliver_notification(state, findings, lambda: None, now=int(day + 9 * 3600))
+            n.deliver_notification(state, [], lambda: None, now=int(day + 20 * 3600))
+            self.assertEqual(sender.call_count, 2)
+            self.assertEqual(state['notification']['digest'], {'new_device:10.20.30.9': {'text': 'New device at 10.20.30.9', 'count': 1}, 'dns_entropy on dns-a': {'text': 'High-entropy DNS labels on dns-a', 'count': 8}})
+            n.deliver_notification(state, [], lambda: None, now=int(day + 86400 + 9 * 3600))
+            self.assertEqual(sender.call_count, 3)
+            self.assertEqual(sender.call_args.args[0], ['High-entropy DNS labels on dns-a (x8)', 'New device at 10.20.30.9'])
+
+    def test_quiet_day_still_sends_a_heartbeat_digest_and_failure_retries(self):
+        state = {}
+        now = int(time.mktime((2026, 10, 24, 9, 0, 0, 0, 0, -1)))
+        failure = {'status': 'failed', 'error_type': 'TransportError'}
+        with patch.object(n, 'DIGEST_HOUR', 8), patch.object(notify, 'send', side_effect=[failure, {'status': 'accepted'}]) as sender:
+            self.assertEqual(n.deliver_notification(state, [], lambda: None, now=now), failure)
+            self.assertEqual(n.deliver_notification(state, [], lambda: None, now=now + 1800)['status'], 'accepted')
+            self.assertEqual(n.deliver_notification(state, [], lambda: None, now=now + 3600)['status'], 'quiet')
+        self.assertEqual(sender.call_count, 2)
+        self.assertEqual(sender.call_args.kwargs, {'mode': 'digest'})
 
     def test_disabled_never_reads_a_topic_or_changes_baseline_fingerprint(self):
         before = settings()['_fingerprint']
@@ -514,24 +548,28 @@ class NotificationTests(unittest.TestCase):
             self.assertEqual(n.deliver_notification({}, [n.finding('new_ports')], {}, lambda: None), {'status': 'disabled'})
         self.assertEqual(settings()['_fingerprint'], before)
 
-    def test_sender_fixed_payload_priorities_and_private_receipt(self):
+    def test_sender_payload_priorities_and_private_receipt(self):
+        lines = ['New device at 10.20.30.9', 'New open ports on 10.20.30.9: 22'] + ['x'] * 8
         with self.server() as calls, patch.dict(os.environ, {'http_proxy': 'http://127.0.0.1:1', 'https_proxy': 'http://127.0.0.1:1', 'no_proxy': ''}):
-            result = notify.send({'new_ports': 2, 'auth_failed': 7, 'dns_entropy': 4,
-                                  'private.example': 1, 'new_device': True, 'dns_suffix': '10.20.30.9'}, delayed=True)
+            result = notify.send(lines, delayed=True)
             self.assertEqual(result, {'status': 'accepted', 'id': 'AbCdEf123456'})
             self.assertEqual(notify.send(mode='test'), result)
             self.assertEqual(notify.send(mode='failure'), result)
+            self.assertEqual(notify.send([], mode='digest'), result)
+            self.assertEqual(notify.send(['\N{SNOWMAN}'], mode='digest'), result)
         path, headers, body = calls[0]
         self.assertEqual(path, '/publish')
         self.assertEqual(headers['Priority'], '4')
         self.assertTrue(headers['Title'].isascii())
-        self.assertEqual(body.decode(), 'Netguard monitoring needs review. Alert only; review the local report. Delayed summary from an earlier delivery failure. DNS advisory for review; no attack is confirmed. Counts: auth_failed=7, dns_entropy=4, new_ports=2')
+        self.assertEqual(body.decode().splitlines(), ['Delayed from an earlier delivery failure.', *lines[:8], '+2 more in the local report.', 'Alert only; nothing was changed.'])
         self.assertEqual(calls[1][1]['Priority'], '3')
         self.assertEqual(calls[1][2], b'Netguard test notification. Alert-only monitoring.')
         self.assertEqual(calls[2][1]['Priority'], '4')
         self.assertIn(b'scanner failed to complete; monitoring incomplete', calls[2][2])
-        for private in (self.topic, 'private.example', '10.20.30.9', 'a-server'):
-            self.assertNotIn(private, body.decode() + json.dumps(result))
+        self.assertEqual(calls[3][2], b'Nothing new since the last digest.')
+        self.assertEqual(calls[3][1]['Title'], 'Netguard morning digest')
+        self.assertEqual(calls[4][2], b'?')
+        self.assertNotIn(self.topic, body.decode() + json.dumps(result))
 
     def test_actual_redirect_rejected_and_errors_do_not_leak(self):
         with self.server(302, b'PRIVATE_RESPONSE') as calls:
@@ -562,17 +600,20 @@ class NotificationTests(unittest.TestCase):
         with patch.object(notify.urllib.request.OpenerDirector, 'open', return_value=response):
             self.assertEqual(notify.send(mode='test'), {'status': 'accepted'})
 
-    def test_pending_stays_bounded_and_retries_repeated_clean_failures(self):
+    def test_failed_page_is_retried_until_accepted_and_state_stays_bounded(self):
         state = {}
         failure = {'status': 'failed', 'error_type': 'HTTPError'}
+        many = [n.finding('new_device', ip='192.168.%d.%d' % (i // 250, i % 250 + 1)) for i in range(400)]
         with patch.object(notify, 'send', return_value=failure) as sender:
-            self.assertEqual(n.deliver_notification(state, [n.finding('auth_failed', count=2_000_000)], {}, lambda: None), failure)
-            self.assertEqual(state['notification']['pending'], {'auth_failed': 1_000_000})
-            self.assertEqual(n.deliver_notification(state, [], {}, lambda: None), failure)
-            self.assertEqual(n.deliver_notification(state, [], {}, lambda: None), failure)
-            self.assertEqual(state['notification']['last_success'], {})
-            self.assertEqual(state['notification']['pending'], {'auth_failed': 1_000_000})
-            self.assertEqual(sender.call_count, 3)
+            self.assertEqual(n.deliver_notification(state, many, lambda: None, now=100), failure)
+            self.assertEqual(n.deliver_notification(state, [], lambda: None, now=200), failure)
+            self.assertEqual(sender.call_count, 2)
+            self.assertEqual(state['notification']['paged'], {})
+        with patch.object(notify, 'send', return_value={'status': 'accepted'}):
+            n.deliver_notification(state, [], lambda: None, now=300)
+        self.assertEqual(state['notification']['pending'], {})
+        saved = {key: len(state['notification'][key]) for key in ('paged', 'digest')}
+        self.assertEqual(saved, {'paged': n.MAX_SAVED, 'digest': n.MAX_SAVED})
 
     def test_failed_transient_pending_survives_clean_scan_without_double_logs(self):
         output = self.root / 'reports'
@@ -581,24 +622,24 @@ class NotificationTests(unittest.TestCase):
         hosts = {'10.20.29.1': [22]}
         n.atomic_json(output / 'baseline.json', {'fingerprint': c['_fingerprint'], 'hosts': hosts})
         n.atomic_json(output / 'state.json', {'checkpoints': {'auth': 5}, 'snapshot': {'old': True}})
-        def failed(counts, delayed=False):
-            self.assertEqual(counts, {'auth_failed': 3})
+        def failed(lines, delayed=False):
+            self.assertEqual(lines, ['New device at 10.20.30.9'])
             self.assertFalse(delayed)
             initial = list(output.glob('*.md'))
             self.assertEqual(len(initial), 1)
-            self.assertIn('Failed authentication', initial[0].read_text())
+            self.assertIn('New device observed at 10.20.30.9', initial[0].read_text())
             self.assertFalse((output / 'alerts.jsonl').exists())
             saved = json.loads((output / 'state.json').read_text())
             self.assertEqual(saved['checkpoints'], {'auth': 5})
-            self.assertEqual(saved['notification']['pending'], {'auth_failed': 3})
-            self.assertEqual(saved['notification']['last_success'], {})
+            self.assertEqual(saved['notification']['pending'], {'new_device:10.20.30.9': 'New device at 10.20.30.9'})
+            self.assertEqual(saved['notification']['paged'], {})
             return {'status': 'failed', 'error_type': 'TransportError'}
         with contextlib.redirect_stdout(io.StringIO()), patch.object(n, 'scan', return_value=(hosts, [])), patch.object(n, 'triage', return_value={'severity': 'info', 'proposal': 'none'}):
-            with patch.object(n, 'collect', return_value=({'auth': 100}, [n.finding('auth_failed', count=3)])), patch.object(notify, 'send', side_effect=failed):
+            with patch.object(n, 'collect', return_value=({'auth': 100}, [n.finding('new_device', ip='10.20.30.9')])), patch.object(notify, 'send', side_effect=failed):
                 self.assertEqual(n.run(c), 1)
             saved = json.loads((output / 'state.json').read_text())
             self.assertEqual(saved['checkpoints'], {'auth': 100})
-            self.assertEqual(saved['notification']['pending'], {'auth_failed': 3})
+            self.assertEqual(list(saved['notification']['pending']), ['new_device:10.20.30.9'])
             self.assertEqual(saved['notification']['delivery']['status'], 'failed')
             rows = (output / 'alerts.jsonl').read_text().splitlines()
             self.assertEqual(len(rows), 1)
@@ -606,7 +647,7 @@ class NotificationTests(unittest.TestCase):
             self.assertIn('Phone notification delivery failed', (output / 'latest.md').read_text())
             with patch.object(n, 'collect', return_value=({'auth': 100}, [])), patch.object(notify, 'send', return_value={'status': 'accepted'}) as sender:
                 self.assertEqual(n.run(c), 0)
-                sender.assert_called_once_with({'auth_failed': 3}, delayed=True)
+                sender.assert_called_once_with(['New device at 10.20.30.9'], delayed=True)
                 self.assertEqual(n.run(c), 0)
                 self.assertEqual(sender.call_count, 1)
             saved = json.loads((output / 'state.json').read_text())
@@ -626,10 +667,10 @@ class NotificationTests(unittest.TestCase):
         with self.server() as calls, patch.object(n, 'command', side_effect=scan_command), patch.object(n, 'collect', return_value=({}, [])), patch.object(n, 'triage', return_value={'severity': 'info', 'proposal': 'none'}), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(n.run(c), 1)
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][2], b'Netguard monitoring needs review. Alert only; review the local report. Counts: new_device=1, new_ports=1')
+        self.assertEqual(calls[0][2].decode().splitlines(), ['New device at 10.20.29.2', 'New open ports on 10.20.29.1: 80', 'Alert only; nothing was changed.'])
         state = json.loads((output / 'state.json').read_text())
         self.assertEqual(state['notification']['delivery'], {'status': 'accepted', 'id': 'AbCdEf123456'})
-        self.assertGreater(state['notification']['last_success']['sent_at'], 0)
+        self.assertEqual(sorted(state['notification']['paged']), ['new_device:10.20.29.2', 'new_ports:10.20.29.1:80'])
         self.assertEqual(state['snapshot']['fingerprint'], c['_fingerprint'])
         self.assertIn('New open TCP ports at 10.20.29.1: 80', (output / 'latest.md').read_text())
 
@@ -671,8 +712,9 @@ class NotificationTests(unittest.TestCase):
         self.assertEqual(sender.call_count, 1)
         saved = json.loads((output / 'state.json').read_text())
         self.assertEqual(saved['checkpoints'], {'auth': 5})
-        self.assertEqual(saved['notification']['last_success'], {})
-        self.assertEqual(saved['notification']['pending'], {'auth_failed': 3, 'baseline_missing': 1})
+        self.assertEqual(saved['notification']['paged'], {})
+        self.assertEqual(saved['notification']['pending'], {'baseline_missing': n.PAGE_NOTES['baseline_missing']})
+        self.assertEqual(saved['notification']['digest']['auth_failed']['count'], 3)
         self.assertEqual(len((output / 'alerts.jsonl').read_text().splitlines()), 1)
 
     def test_cli_notification_modes_do_not_read_config_or_scan(self):

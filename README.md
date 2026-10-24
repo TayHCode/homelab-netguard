@@ -91,9 +91,22 @@ access, and write access only to the report directory. Stop it with
 
 ## Phone notifications
 
-Optional high-priority alerts go through [ntfy](https://docs.ntfy.sh/publish/).
-Only fixed text, finding categories, and bounded counts are sent; reports,
-addresses, ports, domains, usernames, and model output stay local.
+Optional alerts go through [ntfy](https://docs.ntfy.sh/publish/). Scanning, log
+analysis, and model inference stay local. There are two kinds of message:
+
+- **Page** (high priority): a new device, new open TCP ports, or a baseline
+  problem. The message names the item, for example `New device at 192.168.1.9` or
+  `New open ports on 192.168.1.9: 22, 80`. Each distinct item pages once, so a
+  DHCP device that sleeps and wakes does not page again. It can page again after
+  14 days. Review it, then run `--approve-baseline` once the item is known.
+- **Morning digest** (default priority): one message after 08:00 local time that
+  lists everything else seen since the last digest, with `(xN)` counts: DNS
+  patterns, failed sign-ins, monitoring gaps, and items that already paged and
+  are still unreviewed. A day with nothing new still sends "Nothing new", so
+  silence means the scanner is down, not that all is well.
+
+Only private IP addresses, port numbers, host names, and fixed text go to ntfy.
+Domains, usernames, raw logs, and model output stay local.
 
 The ntfy topic acts like a password. Put it in a file outside Git (for example
 `/etc/netguard/ntfy-topic`, mode 0640, readable by the service user) and point
@@ -104,14 +117,13 @@ notifications. Test delivery without scanning:
 NETGUARD_NTFY_TOPIC_FILE=/etc/netguard/ntfy-topic python3 netguard.py --test-notification
 ```
 
-New devices, open ports, failed logins, suspicious-domain matches, baseline
-problems, and monitoring gaps notify. Log rotation, skipped initial history,
-and offline `optional_hosts` stay in the report. DNS heuristics notify only for
-a high or critical model advisory. Identical active findings notify at most
-once every six hours; a clean run resets that. Delivery is at least once, so a
-crash after server acceptance can send a duplicate. A separate failure unit
-sends a generic warning if the scanner fails or times out. It cannot notify if
-the host, its internet connection, or ntfy is down.
+Log rotation, skipped initial history, DNS label heuristics, the model's
+severity, and offline `optional_hosts` never page; they stay in the report.
+A failed delivery is retried on the next scan from bounded saved state, even if
+the original event has cleared. Delivery is at least once, so a crash after
+server acceptance can send a duplicate. A separate failure unit sends a generic
+warning if the scanner fails or times out. It cannot notify if the host, its
+internet connection, or ntfy is down.
 
 ## Limitations
 

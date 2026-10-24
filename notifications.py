@@ -16,14 +16,8 @@ EVENTS = frozenset({
     'log_read', 'log_backlog', 'dns_parse', 'model_triage', 'state_read',
     'baseline_read', 'baseline_approval', 'configuration_or_io', 'overlapping_run',
 )})
-MAX_COUNT = 1_000_000
-
-
-def safe_counts(counts):
-    if not isinstance(counts, dict):
-        return {}
-    return {key: min(value, MAX_COUNT) for key, value in counts.items()
-            if isinstance(key, str) and key in EVENTS and type(value) is int and value > 0}
+MAX_LINES = 8
+MAX_LINE = 200
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -31,7 +25,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def send(counts=None, *, mode='alert', delayed=False):
+def send(lines=(), *, mode='alert', delayed=False):
     if TOPIC_ENV not in os.environ:
         return {'status': 'disabled'}
     try:
@@ -46,19 +40,24 @@ def send(counts=None, *, mode='alert', delayed=False):
         title, body = 'Netguard test', 'Netguard test notification. Alert-only monitoring.'
     elif mode == 'failure':
         title, body = 'Netguard monitoring incomplete', 'Netguard scanner failed to complete; monitoring incomplete. Review the local scanner.'
-    elif mode == 'alert':
-        title = 'Netguard review needed'
-        body = 'Netguard monitoring needs review. Alert only; review the local report.'
-        if delayed:
-            body += ' Delayed summary from an earlier delivery failure.'
-        counts = safe_counts(counts)
-        if counts.keys() & {'dns_long_label', 'dns_entropy'}:
-            body += ' DNS advisory for review; no attack is confirmed.'
-        body += ' Counts: ' + ', '.join(key + '=' + str(value) for key, value in sorted(counts.items()))
+    elif mode in ('alert', 'digest'):
+        lines = [str(line)[:MAX_LINE] for line in lines]
+        shown = lines[:MAX_LINES]
+        if len(lines) > MAX_LINES:
+            shown.append('+' + str(len(lines) - MAX_LINES) + ' more in the local report.')
+        if mode == 'alert':
+            title = 'Netguard: new on your network'
+            if delayed:
+                shown.insert(0, 'Delayed from an earlier delivery failure.')
+            shown.append('Alert only; nothing was changed.')
+        else:
+            title = 'Netguard morning digest'
+            shown = shown or ['Nothing new since the last digest.']
+        body = '\n'.join(shown)
     else:
         return {'status': 'failed', 'error_type': 'NotificationModeError'}
-    request = urllib.request.Request('https://ntfy.sh/' + topic, data=body.encode('ascii'),
-                                     headers={'Title': title, 'Priority': '3' if mode == 'test' else '4',
+    request = urllib.request.Request('https://ntfy.sh/' + topic, data=body.encode('ascii', 'replace'),
+                                     headers={'Title': title, 'Priority': '3' if mode in ('test', 'digest') else '4',
                                               'Content-Type': 'text/plain; charset=utf-8'}, method='POST')
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())

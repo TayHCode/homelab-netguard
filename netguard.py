@@ -30,6 +30,16 @@ COLLECT_SECONDS = 60
 SEVERITIES = ['info', 'low', 'medium', 'high', 'critical']
 PROPOSALS = ['none', 'review_inventory', 'review_ports', 'review_dns', 'review_auth', 'restore_coverage']
 DNS_TELEMETRY = {'dns_long_label', 'dns_entropy'}
+PAGE_EVENTS = {'new_device', 'new_ports', 'baseline_missing', 'baseline_mismatch', 'baseline_scope_review'}
+PAGE_NOTES = {
+    'baseline_missing': 'No approved network reference exists. Review the report, then approve one.',
+    'baseline_mismatch': 'The network reference no longer matches the configuration. Review the report.',
+    'baseline_scope_review': 'The network reference needs scope review. Review the report.',
+}
+LOG_LABELS = {'auth_failed': 'Failed sign-ins', 'dns_suffix': 'Configured DNS suffix matches', 'dns_long_label': 'Long DNS labels', 'dns_entropy': 'High-entropy DNS labels'}
+PAGED_TTL = 14 * 24 * 60 * 60
+MAX_SAVED = 200
+DIGEST_HOUR = 8
 COVERAGE_MESSAGES = {
     'lan_discovery': 'Local network discovery failed. Next step: check scanner access and retry.',
     'host_discovery': 'Inventory discovery failed. Next step: check network connectivity to the inventory hosts and retry.',
@@ -526,55 +536,88 @@ def report(outdir, findings, classification, notify=None):
     print(text)
 
 
-def phone_incidents(findings, classification):
-    incidents, counts = [], collections.Counter()
-    dns_advisory = classification.get('severity') in ('high', 'critical') and not any(f.get('category') == 'new_ports' for f in findings)
-    for item in findings:
-        item = safe_finding(item)
+def notification_items(findings):
+    items = {}
+    for item in map(safe_finding, findings):
         category = item['category']
-        if category in DNS_TELEMETRY and not dns_advisory:
-            continue
         if category == 'coverage':
             if item.get('component') == 'host_offline' and item.get('optional') is True:
                 continue
             category = 'coverage_' + item.get('component', '')
         if category not in notifications.EVENTS:
             continue
-        counts[category] += item.get('count', 1)
-        incidents.append({key: value for key, value in item.items() if key != 'count'})
-    signature = hashlib.sha256(json.dumps(sorted(incidents, key=lambda f: json.dumps(f, sort_keys=True)), sort_keys=True).encode()).hexdigest() if incidents else ''
-    return signature, notifications.safe_counts(dict(counts))
+        ip, host, client = item.get('ip', 'an unlisted address'), item.get('host', ''), item.get('client_ip', '')
+        where = (' on ' + host if host else '') + (' from ' + client if client else '')
+        count = 1
+        if category == 'new_device':
+            key, text = 'new_device:' + ip, 'New device at ' + ip
+        elif category == 'new_ports':
+            ports = ', '.join(map(str, item.get('ports', [])))
+            key, text = 'new_ports:' + ip + ':' + ports, 'New open ports on ' + ip + ': ' + ports
+        elif category in PAGE_NOTES:
+            key, text = category, PAGE_NOTES[category]
+        elif category in LOG_LABELS:
+            key, text, count = category + where, LOG_LABELS[category] + where, item.get('count', 1)
+        else:
+            key, text = category + where, 'Monitoring gap: ' + category[len('coverage_'):].replace('_', ' ') + where
+        slot = items.setdefault(key, {'text': text, 'count': 0, 'page': category in PAGE_EVENTS})
+        slot['count'] += count
+    return items
 
 
-def deliver_notification(state, findings, classification, save_pending):
+def saved_map(value, valid):
+    if not isinstance(value, dict):
+        return {}
+    return {k: v for k, v in list(value.items())[-MAX_SAVED:] if isinstance(k, str) and len(k) <= 300 and valid(v)}
+
+
+def is_text(value):
+    return isinstance(value, str) and len(value) <= notifications.MAX_LINE
+
+
+def is_slot(value):
+    return isinstance(value, dict) and is_text(value.get('text')) and type(value.get('count')) is int and value['count'] > 0
+
+
+def deliver_notification(state, findings, save_pending, now=None):
     if notifications.TOPIC_ENV not in os.environ:
         return {'status': 'disabled'}
-    saved = state.get('notification', {})
-    if not isinstance(saved, dict):
-        saved = {}
-    signature, counts = phone_incidents(findings, classification)
-    pending = notifications.safe_counts(saved.get('pending'))
+    now = int(time.time()) if now is None else now
+    saved = state.get('notification')
+    saved = saved if isinstance(saved, dict) else {}
+    paged = saved_map(saved.get('paged'), lambda t: type(t) is int and 0 <= now - t < PAGED_TTL)
+    pending = saved_map(saved.get('pending'), is_text)
+    digest = saved_map(saved.get('digest'), is_slot)
+    items = notification_items(findings)
+    for key, item in items.items():
+        slot = digest.setdefault(key, {'text': item['text'], 'count': 0})
+        slot['count'] += item['count']
     delayed = bool(pending)
-    last = saved.get('last_success', {})
-    if not isinstance(last, dict):
-        last = {}
-    now = int(time.time())
-    unchanged = signature and signature == last.get('signature') and type(last.get('sent_at')) is int and 0 <= now - last['sent_at'] < 6 * 60 * 60
-    state['notification'] = {'last_success': last if signature else {}, 'pending': pending}
-    if not pending and (not counts or unchanged):
-        outcome = {'status': 'unchanged' if counts else 'quiet'}
-    else:
-        pending = {key: max(pending.get(key, 0), counts.get(key, 0)) for key in pending.keys() | counts.keys()}
-        state['notification']['pending'] = pending
-        # Persist pending evidence without advancing log cursors before the final report.
+    pending.update({k: i['text'] for k, i in items.items() if i['page'] and k not in paged})
+    local, day = time.localtime(now), time.strftime('%Y-%m-%d', time.localtime(now))
+    digest_day = saved.get('digest_day')
+    digest_due = local.tm_hour >= DIGEST_HOUR and digest_day != day
+    state['notification'] = {'paged': paged, 'pending': pending, 'digest': digest, 'digest_day': digest_day}
+    outcomes = []
+    if pending or digest_due:
         save_pending()
-        outcome = notifications.send(pending, delayed=delayed)
+    if pending:
+        outcome = notifications.send(sorted(pending.values()), delayed=delayed)
+        outcomes.append(outcome)
         if outcome['status'] == 'accepted':
-            state['notification']['last_success'] = {'signature': signature, 'sent_at': now} if signature else {}
-            state['notification']['pending'] = {}
+            paged.update({key: now for key in pending})
+            pending.clear()
+    if digest_due:
+        lines = [slot['text'] + (' (x' + str(slot['count']) + ')' if slot['count'] > 1 else '') for _, slot in sorted(digest.items())]
+        outcome = notifications.send(lines, mode='digest')
+        outcomes.append(outcome)
+        if outcome['status'] == 'accepted':
+            digest.clear()
+            state['notification']['digest_day'] = day
+    outcome = (next((o for o in outcomes if o['status'] == 'failed'), None) or next((o for o in outcomes if o['status'] == 'accepted'), None)
+               or {'status': 'unchanged' if any(i['page'] for i in items.values()) else 'quiet'})
     state['notification']['delivery'] = outcome
     return outcome
-
 
 def approved_snapshot(state, c):
     snapshot = state.get('snapshot', {})
@@ -642,7 +685,7 @@ def run(c, approve=False):
             findings.append(finding('coverage', component='model_triage'))
         findings.insert(0, finding('scan_summary', host_count=len(snapshot), network_complete=not any(f.get('component') != 'host_offline' for f in scan_errors), log_sources=sum(f['category'] == 'source_summary' for f in log_findings), log_coverage_complete=not any(f['category'] == 'coverage' for f in log_findings)))
         def notify():
-            return deliver_notification(state, findings, classification, lambda: atomic_json(outdir / 'state.json', state))
+            return deliver_notification(state, findings, lambda: atomic_json(outdir / 'state.json', state))
         report(outdir, findings, classification, notify=notify)
         state.update(checkpoints=checkpoints, snapshot={'fingerprint': c['_fingerprint'], 'complete': not any(f.get('component') != 'host_offline' for f in scan_errors), 'hosts': snapshot})
         # A crash after HTTP acceptance can resend pending evidence on recovery.

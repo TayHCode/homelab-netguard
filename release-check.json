@@ -462,6 +462,20 @@
       "path": "tests/test_netguard.py",
       "fingerprint": "a959828bd4bfad50",
       "reason": "Reviewed: short term matches inside the ordinary word 'sender' in test code."
+    },
+    {
+      "scope": "tree",
+      "kind": "ipv4",
+      "path": "README.md",
+      "fingerprint": "e41d6b2fda656eef",
+      "reason": "Reviewed: private documentation example address, not a real host."
+    },
+    {
+      "scope": "history",
+      "kind": "ipv4",
+      "path": "README.md",
+      "fingerprint": "e41d6b2fda656eef",
+      "reason": "Reviewed: private documentation example address, not a real host."
     }
   ],
   "quickstart": [
